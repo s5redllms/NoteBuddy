@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="NoteBuddy - Your intelligent companion for managing todos, rich text notes, and AI-powered conversations. Stay organized with style.">
+    <title>NoteBuddy - Your Smart Note & Todo Companion</title>
+    <!-- Quill Rich Text Editor -->
+    <link href="https://cdn.quilljs.com/1.3.6/quill.snow.css" rel="stylesheet">
+    <!-- Prism.js for syntax highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-dark.min.css" rel="stylesheet" media="(prefers-color-scheme: dark)">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <nav class="navbar">
+        <div class="nav-left">
+            <h1>NoteBuddy</h1>
+        </div>
+        <div class="nav-center">
+            <span class="user-welcome">Welcome, {{ session.username }}</span>
+        </div>
+        <div class="nav-right">
+            <button id="theme-toggle-btn" class="theme-btn">🌙</button>
+            {% if session.user_role == 'admin' %}
+                <a href="{{ url_for('admin_dashboard') }}" class="logout-btn">Admin</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}" class="logout-btn">Logout</a>
+        </div>
+    </nav>
+
+    <!-- Main Content Area -->
+    <div class="main-container">
+        <!-- Left Side: Todo & Notes -->
+        <div class="left-panel">
+            <div class="panel-header">
+                <div class="tab-switcher">
+                    <button class="tab-btn active" data-tab="todos">Todos</button>
+                    <button class="tab-btn" data-tab="notes">Notes</button>
+                </div>
+            </div>
+
+            <!-- Todos Section -->
+            <div class="tab-content active" id="todos-tab">
+                <div class="input-section">
+                    <div class="add-todo-form">
+                        <input type="text" id="todo-input" placeholder="What needs to be done?" class="todo-input">
+                        <button id="add-todo-btn" class="add-btn">+</button>
+                    </div>
+                </div>
+                <div class="todos-list" id="todos-list">
+                    <!-- Todos will be loaded here -->
+                </div>
+            </div>
+
+            <!-- Notes Section -->
+            <div class="tab-content" id="notes-tab">
+                <div class="input-section">
+                    <button id="add-note-btn" class="add-note-btn">+ New Note</button>
+                </div>
+                <div class="notes-list" id="notes-list">
+                    <!-- Notes will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Vertical Divider with Toggle -->
+        <div class="divider">
+            <button id="panel-toggle-btn" class="panel-toggle-btn" title="Toggle AI Assistant">
+                <span class="toggle-arrow">&lt;</span>
+            </button>
+        </div>
+
+        <!-- Right Side: AI Chatbot -->
+        <div class="right-panel">
+            <div class="panel-header">
+                <h3>AI Assistant</h3>
+                <div class="conversation-controls">
+                    <select id="conversation-select" class="conversation-select">
+                        <option value="current">Current Chat</option>
+                    </select>
+                    <button id="delete-conversation-btn" class="delete-conversation-btn" title="Delete selected conversation" style="display: none;">🗑️</button>
+                </div>
+            </div>
+            
+            <div class="chat-container">
+                <div class="chat-messages" id="chat-messages">
+                    <div class="empty-chat-state" id="empty-chat-state">
+                        <div class="empty-chat-message">
+                            <p>Start a new conversation by typing a message below.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="chat-input-section">
+                    <div class="chat-input-container">
+                        <textarea id="chat-input" placeholder="Ask NoteBuddy anything..." class="chat-input" rows="2"></textarea>
+                        <button id="send-chat-btn" class="send-btn">Send</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Note Modal -->
+    <div id="note-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modal-title">Edit Note</h3>
+                <span class="close-modal">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="text" id="note-title-input" placeholder="Give your note a title..." class="note-title-input">
+                
+                <!-- Document Editor Toolbar -->
+                <div class="editor-toolbar">
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="bold-btn" title="Bold"><strong>B</strong></button>
+                        <button type="button" class="toolbar-btn" id="italic-btn" title="Italic"><em>I</em></button>
+                        <button type="button" class="toolbar-btn" id="underline-btn" title="Underline"><u>U</u></button>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <select id="font-family" class="toolbar-select" title="Font Family">
+                            <option value="Arial">Arial</option>
+                            <option value="Times New Roman">Times New Roman</option>
+                            <option value="Helvetica">Helvetica</option>
+                            <option value="Georgia">Georgia</option>
+                            <option value="Verdana">Verdana</option>
+                        </select>
+                        <select id="font-size" class="toolbar-select" title="Font Size">
+                            <option value="12px">12</option>
+                            <option value="14px" selected>14</option>
+                            <option value="16px">16</option>
+                            <option value="18px">18</option>
+                            <option value="20px">20</option>
+                            <option value="24px">24</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="align-left" title="Align Left">⬅</button>
+                        <button type="button" class="toolbar-btn" id="align-center" title="Align Center">⬛</button>
+                        <button type="button" class="toolbar-btn" id="align-right" title="Align Right">➡</button>
+                        <button type="button" class="toolbar-btn" id="align-justify" title="Justify">⬜</button>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="bullet-list" title="Bullet List">•</button>
+                        <button type="button" class="toolbar-btn" id="number-list" title="Numbered List">1.</button>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="code-block-btn" title="Code Block">&lt;/&gt;</button>
+                        <button type="button" class="toolbar-btn" id="inline-code-btn" title="Inline Code">`</button>
+                        <select id="code-language" class="toolbar-select" title="Programming Language">
+                            <option value="">Plain Text</option>
+                            <option value="javascript">JavaScript</option>
+                            <option value="python">Python</option>
+                            <option value="html">HTML</option>
+                            <option value="css">CSS</option>
+                            <option value="json">JSON</option>
+                            <option value="sql">SQL</option>
+                            <option value="bash">Bash</option>
+                            <option value="java">Java</option>
+                            <option value="csharp">C#</option>
+                            <option value="php">PHP</option>
+                        </select>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <input type="color" id="text-color" class="color-picker" title="Text Color">
+                        <input type="color" id="bg-color" class="color-picker" title="Background Color">
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="undo-btn" title="Undo">↶</button>
+                        <button type="button" class="toolbar-btn" id="redo-btn" title="Redo">↷</button>
+                    </div>
+                    <div class="toolbar-divider"></div>
+                    <div class="toolbar-section">
+                        <button type="button" class="toolbar-btn" id="find-replace-btn" title="Find & Replace">🔍</button>
+                        <span id="word-count" class="word-count">0 words</span>
+                    </div>
+                </div>
+                
+                <!-- Rich Text Editor -->
+                <div id="quill-editor" class="quill-editor"></div>
+                
+                <!-- Hidden textarea for form submission -->
+                <textarea id="note-content-input" style="display: none;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <div class="footer-left">
+                    <button id="export-pdf-btn" class="toolbar-btn" title="Export as PDF">📄 PDF</button>
+                    <button id="export-docx-btn" class="toolbar-btn" title="Export as DOCX">📝 DOCX</button>
+                    <button id="print-btn" class="toolbar-btn" title="Print">🖨️</button>
+                </div>
+                <div class="footer-right">
+                    <button id="save-note-btn" class="save-btn">Save</button>
+                    <button id="cancel-note-btn" class="cancel-btn">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Quill Rich Text Editor -->
+    <script src="https://cdn.quilljs.com/1.3.6/quill.min.js"></script>
+    <!-- Prism.js for syntax highlighting -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-css.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-html.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-json.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-sql.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-bash.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-java.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-csharp.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-php.min.js"></script>
+    <!-- jsPDF for PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- html2canvas for capturing content -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>
